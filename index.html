@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Élections scolaires | Groupe Scolaire Nanti</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f3f6fb;color:#172033}
+header{background:#123b70;color:white;text-align:center;padding:25px 14px}header h1{margin:0 0 8px;font-size:clamp(24px,5vw,36px)}
+main{max-width:980px;margin:18px auto;padding:0 12px 32px}section{background:white;padding:18px;border-radius:14px;margin:16px 0;box-shadow:0 3px 12px #0001}
+h2{color:#123b70;margin-top:0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.card{border:1px solid #d8e1ed;border-radius:12px;padding:14px;text-align:center}.card img{width:120px;height:120px;object-fit:cover;border-radius:50%;background:#e8edf5}
+label{display:block;font-weight:bold;margin:12px 0 5px}input,select,textarea,button{font:inherit}input,select,textarea{width:100%;padding:11px;border:1px solid #bdc8d8;border-radius:8px}input[type=file]{padding:7px}textarea{min-height:75px}
+button{background:#145bb8;color:white;border:0;border-radius:8px;padding:11px 15px;margin-top:12px;cursor:pointer;font-weight:bold}button:disabled{background:#94a3b8;cursor:not-allowed}.secondary{background:#475569}.danger{background:#b42318}
+.notice{padding:10px 12px;background:#eaf4ff;border-radius:8px;margin-top:10px}.hidden{display:none!important}.muted{font-size:14px;color:#64748b}.row{margin:14px 0}.bar{height:12px;background:#e5eaf1;border-radius:20px;overflow:hidden}.fill{height:100%;background:#1d70d6}
+footer{text-align:center;color:#64748b;font-size:13px;padding:16px}
+</style></head>
+<body>
+<header><h1>Groupe Scolaire Nanti</h1><div>Élection du Président du Conseil Scolaire</div></header>
+<main>
+<section><h2>🗳️ Les candidats</h2><p class="muted">Consulte les programmes et vote pour un candidat. Le vote est enregistré sur le serveur du site.</p>
+<div id="status" class="notice">Chargement des candidats…</div><div id="candidates" class="grid"></div></section>
+<section><h2>📊 Résultats</h2><div id="results">Chargement des résultats…</div></section>
+<section><h2>🔐 Panneau d’administration</h2>
+<div id="loginPanel"><p class="muted">Connecte-toi pour gérer les candidats. Le mot de passe est vérifié par le serveur.</p>
+<label for="adminPassword">Mot de passe administrateur</label><input id="adminPassword" type="password" autocomplete="current-password" placeholder="Mot de passe admin">
+<button id="loginBtn" type="button">Se connecter</button><div id="loginMessage" class="notice hidden"></div></div>
+<div id="adminPanel" class="hidden">
+<p>Tu es connecté à l’administration.</p>
+<form id="candidateForm">
+<label for="name">Nom du candidat</label><input id="name" maxlength="70" required placeholder="Nom et prénom">
+<label for="className">Classe</label><select id="className" required><option value="">Choisir une classe</option><option>6e</option><option>5e</option><option>4e</option><option>3e</option><option>2nde A</option><option>2nde C</option><option>1re A</option><option>1re C</option><option>1re D</option><option>Terminale A</option><option>Terminale C</option><option>Terminale D</option><option>Autre</option></select>
+<label for="program">Présentation / programme</label><textarea id="program" maxlength="500" placeholder="Les idées du candidat"></textarea>
+<label for="photoUrl">Lien de photo (facultatif)</label><input id="photoUrl" type="url" placeholder="https://…">
+<label for="photoFile">Ou choisir une photo dans la galerie (facultatif)</label><input id="photoFile" type="file" accept="image/*">
+<button type="submit">Ajouter le candidat</button></form>
+<div id="adminMessage" class="notice hidden"></div>
+<button id="logoutBtn" class="secondary" type="button">Se déconnecter</button>
+<button id="resetVotesBtn" class="danger" type="button">Réinitialiser tous les votes</button>
+</div></section>
+</main><footer>Groupe Scolaire Nanti · Site électoral</footer>
+<script>
+const $=id=>document.getElementById(id);
+let adminToken=sessionStorage.getItem("gsnAdminToken")||"";
+function notice(id,msg,isError=false){$(id).textContent=msg;$(id).classList.remove("hidden");$(id).style.background=isError?"#fee4e2":"#e7f8ed"}
+async function api(path,options={}){const headers={...(options.headers||{})};if(options.body && !(options.body instanceof FormData))headers["Content-Type"]="application/json";if(adminToken)headers["x-admin-token"]=adminToken;const r=await fetch("/.netlify/functions/"+path,{...options,headers});let data={};try{data=await r.json()}catch{}if(!r.ok)throw new Error(data.error||"Une erreur est survenue.");return data}
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+async function load(){
+ try{const data=await api("public-data");renderCandidates(data.candidates||[]);renderResults(data.results||[]);$("status").textContent=(data.candidates||[]).length?"Candidats chargés.":"Aucun candidat pour le moment."}
+ catch(e){$("status").textContent="Le site n’est pas encore connecté à sa base de données. L’administrateur doit terminer la configuration.";renderCandidates([]);$("results").textContent="Résultats indisponibles jusqu’à la configuration."}
+}
+function renderCandidates(cs){const el=$("candidates");el.innerHTML="";if(!cs.length){el.innerHTML='<p class="muted">Aucun candidat publié pour le moment.</p>';return}
+cs.forEach(c=>{const card=document.createElement("article");card.className="card";const img=document.createElement("img");img.alt="Photo de "+c.name;img.src=c.photo_url||"";img.onerror=()=>{img.onerror=null;img.src="data:image/svg+xml;charset=UTF-8,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="100%" height="100%" fill="#e8edf5"/><text x="50%" y="54%" font-size="13" text-anchor="middle" fill="#64748b">Pas de photo</text></svg>')};const h=document.createElement("h3");h.textContent=c.name;const cl=document.createElement("p");cl.textContent="Classe : "+c.class_name;const p=document.createElement("p");p.textContent=c.program||"Aucune présentation fournie.";const b=document.createElement("button");b.textContent="Voter pour ce candidat";b.onclick=async()=>{if(localStorage.getItem("gsnHasVoted")){alert("Un vote a déjà été enregistré depuis ce navigateur.");return}if(!confirm("Confirmer ton vote pour "+c.name+" ?"))return;try{await api("vote",{method:"POST",body:JSON.stringify({candidateId:c.id})});localStorage.setItem("gsnHasVoted","1");alert("Vote enregistré. Merci !");await load()}catch(e){alert(e.message)}};if(localStorage.getItem("gsnHasVoted")){b.disabled=true;b.textContent="Vote déjà enregistré sur cet appareil"}card.append(img,h,cl,p,b);el.append(card)})}
+function renderResults(rs){const el=$("results");el.innerHTML="";if(!rs.length){el.textContent="Les résultats apparaîtront après l’ajout des candidats.";return}rs.forEach(r=>{const row=document.createElement("div");row.className="row";const label=document.createElement("div");label.textContent=`${r.name} (${r.class_name}) — ${r.votes} vote(s)`;const bar=document.createElement("div");bar.className="bar";const fill=document.createElement("div");fill.className="fill";fill.style.width=Math.min(100,Number(r.percent)||0)+"%";bar.append(fill);row.append(label,bar);el.append(row)})}
+$("loginBtn").onclick=async()=>{try{const d=await api("admin-login",{method:"POST",body:JSON.stringify({password:$("adminPassword").value})});adminToken=d.token;sessionStorage.setItem("gsnAdminToken",adminToken);$("loginPanel").classList.add("hidden");$("adminPanel").classList.remove("hidden");notice("adminMessage","Connexion réussie.");}catch(e){notice("loginMessage",e.message,true)}};
+$("logoutBtn").onclick=()=>{adminToken="";sessionStorage.removeItem("gsnAdminToken");$("adminPanel").classList.add("hidden");$("loginPanel").classList.remove("hidden");$("adminPassword").value=""};
+$("candidateForm").onsubmit=async e=>{e.preventDefault();try{let photoUrl=$("photoUrl").value.trim();const file=$("photoFile").files[0];if(file){if(!file.type.startsWith("image/"))throw Error("Choisis un fichier image.");if(file.size>900000)throw Error("La photo doit faire moins de 900 Ko.");photoUrl=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)})}
+await api("admin-candidates",{method:"POST",body:JSON.stringify({name:$("name").value.trim(),className:$("className").value,program:$("program").value.trim(),photoUrl})});$("candidateForm").reset();notice("adminMessage","Candidat ajouté.");await load()}catch(e){notice("adminMessage",e.message,true)}};
+$("resetVotesBtn").onclick=async()=>{if(!confirm("Effacer tous les votes du serveur ? Cette action est irréversible."))return;try{await api("admin-reset-votes",{method:"POST",body:"{}"});notice("adminMessage","Tous les votes ont été réinitialisés.");localStorage.removeItem("gsnHasVoted");await load()}catch(e){notice("adminMessage",e.message,true)}};
+if(adminToken){$("loginPanel").classList.add("hidden");$("adminPanel").classList.remove("hidden")}
+load();
+</script></body></html>
