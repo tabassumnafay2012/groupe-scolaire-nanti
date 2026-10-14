@@ -2,7 +2,7 @@
 
 ## Important
 Ce dossier est un projet prêt à configurer et publier, mais il n'est pas encore en ligne. Il faut connecter un projet Supabase et un site Netlify.
-Le mot de passe `GSNADMIN` doit être ajouté comme variable secrète dans Netlify, pas dans le HTML.
+Le mot de passe `MOT_DE_PASSE_NON_INCLUS` doit être ajouté comme variable secrète dans Netlify, pas dans le HTML.
 
 ## Étapes
 1. Crée un compte Supabase et un projet sur https://supabase.com.
@@ -16,7 +16,7 @@ Le mot de passe `GSNADMIN` doit être ajouté comme variable secrète dans Netli
 6. Dans Netlify > Site configuration > Environment variables, ajoute :
    - `SUPABASE_URL` = Project URL de Supabase
    - `SUPABASE_SERVICE_ROLE_KEY` = clé `service_role` de Supabase
-   - `GSN_ADMIN_PASSWORD` = `GSNADMIN`
+   - `GSN_ADMIN_PASSWORD` = `MOT_DE_PASSE_NON_INCLUS`
    - `GSN_TOKEN_SECRET` = une longue valeur aléatoire différente, à garder secrète
 7. Redéploie le site après avoir ajouté les variables.
 8. Ouvre l'adresse Netlify. Le panneau admin permet d'ajouter les candidats; les visiteurs peuvent voter et voir les résultats.
