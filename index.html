@@ -57,6 +57,28 @@ $("logoutBtn").onclick=()=>{adminToken="";sessionStorage.removeItem("gsnAdminTok
 $("candidateForm").onsubmit=async e=>{e.preventDefault();try{let photoUrl=$("photoUrl").value.trim();const file=$("photoFile").files[0];if(file){if(!file.type.startsWith("image/"))throw Error("Choisis un fichier image.");if(file.size>900000)throw Error("La photo doit faire moins de 900 Ko.");photoUrl=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)})}
 await api("admin-candidates",{method:"POST",body:JSON.stringify({name:$("name").value.trim(),className:$("className").value,program:$("program").value.trim(),photoUrl})});$("candidateForm").reset();notice("adminMessage","Candidat ajouté.");await load()}catch(e){notice("adminMessage",e.message,true)}};
 $("resetVotesBtn").onclick=async()=>{if(!confirm("Effacer tous les votes du serveur ? Cette action est irréversible."))return;try{await api("admin-reset-votes",{method:"POST",body:"{}"});notice("adminMessage","Tous les votes ont été réinitialisés.");localStorage.removeItem("gsnHasVoted");await load()}catch(e){notice("adminMessage",e.message,true)}};
+$("deleteCandidatesBtn").onclick = async () => {
+  if (!confirm("ATTENTION ! Cela supprimera tous les candidats et leurs votes. Continuer ?")) {
+    return;
+  }
+
+  if (!confirm("Es-tu vraiment sûr ? Cette action est irréversible.")) {
+    return;
+  }
+
+  try {
+    await api("admin-delete-candidates", {
+      method: "POST",
+      body: "{}"
+    });
+
+    notice("adminMessage", "Tous les candidats et leurs votes ont été supprimés.");
+    localStorage.removeItem("gsnHasVoted");
+    await load();
+  } catch (e) {
+    notice("adminMessage", e.message, true);
+  }
+};
 if(adminToken){$("loginPanel").classList.add("hidden");$("adminPanel").classList.remove("hidden")}
 load();
 </script></body></html>
