@@ -26,7 +26,10 @@ exports.handler = async (event) => {
       throw new Error("Configuration du serveur incomplète.");
     }
 
-    const authorization = event.headers.authorization || "";
+    const authorization =
+     event.headers.authorization ||
+     event.headers.Authorization ||
+     "";
     const token = authorization.startsWith("Bearer ")
       ? authorization.slice(7)
       : "";
