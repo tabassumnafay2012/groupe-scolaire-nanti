@@ -104,7 +104,7 @@ exports.handler = async (event) => {
       name.length > 100 ||
       class_name.length > 50 ||
       program.length > 5000 ||
-      photo_url.length > 2000
+      photo_url.length > 1200000
     ) {
       return {
         statusCode: 400,
