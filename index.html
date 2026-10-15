@@ -24,7 +24,8 @@ footer{text-align:center;color:#64748b;font-size:13px;padding:16px}
 <div id="loginPanel"><p class="muted">Connecte-toi pour gérer les candidats. Le mot de passe est vérifié par le serveur.</p>
 <label for="adminPassword">Mot de passe administrateur</label><input id="adminPassword" type="password" autocomplete="current-password" placeholder="Mot de passe admin">
 <button id="loginBtn" type="button">Se connecter</button><div id="loginMessage" class="notice hidden"></div></div>
-<div id="adminPanel" class="hidden">
+<button id="deleteCandidatesBtn" class="danger" type="button">Supprimer tous les candidats</button>
+ <div id="adminPanel" class="hidden">
 <p>Tu es connecté à l’administration.</p>
 <form id="candidateForm">
 <label for="name">Nom du candidat</label><input id="name" maxlength="70" required placeholder="Nom et prénom">
