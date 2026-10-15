@@ -25,7 +25,11 @@ exports.handler = async (event) => {
     const body = JSON.parse(event.body || "{}");
     const candidateId = body.candidateId;
 
-    if (!candidateId || typeof candidateId !== "string") {
+   if (
+    candidateId === undefined ||
+    candidateId === null ||
+    !/^\d+$/.test(String(candidateId))
+    ) {
       return {
         statusCode: 400,
         headers,
