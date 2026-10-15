@@ -36,7 +36,7 @@ exports.handler = async (event) => {
     const expected = crypto
       .createHmac("sha256", secret)
       .update(payload)
-      .digest("hex");
+      .digest("base64url");
 
     const suppliedBuffer = Buffer.from(signature);
     const expectedBuffer = Buffer.from(expected);
