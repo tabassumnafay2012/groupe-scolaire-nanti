@@ -86,9 +86,9 @@ exports.handler = async (event) => {
 
     const body = JSON.parse(event.body || "{}");
     const name = String(body.name || "").trim();
-    const class_name = String(body.class_name || "").trim();
+    const class_name = String(body.className || body.class_name || "").trim();
     const program = String(body.program || "").trim();
-    const photo_url = String(body.photo_url || "").trim();
+    const photo_url = String(body.photoUrl || body.photo_url || "").trim();
 
     if (!name || !class_name || !program) {
       return {
