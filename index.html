@@ -30,7 +30,7 @@ footer{text-align:center;color:#64748b;font-size:13px;padding:16px}
 <form id="candidateForm">
 <label for="name">Nom du candidat</label><input id="name" maxlength="70" required placeholder="Nom et prénom">
 <label for="className">Classe</label><select id="className" required><option value="">Choisir une classe</option><option>6e</option><option>5e</option><option>4e</option><option>3e</option><option>2nde A</option><option>2nde C</option><option>1re A</option><option>1re C</option><option>1re D</option><option>Terminale A</option><option>Terminale C</option><option>Terminale D</option><option>Autre</option></select>
-<label for="program">Présentation / programme</label><textarea id="program" maxlength="500" placeholder="Les idées du candidat"></textarea>
+<label for="program">Présentation / programme</label><textarea id="program" maxlength="15000" rows="15" placeholder="Écris ici la présentation et le discours du candidat (2000 mots ou plus si nécessaire)"></textarea>
 <label for="photoUrl">Lien de photo (facultatif)</label><input id="photoUrl" type="url" placeholder="https://…">
 <label for="photoFile">Ou choisir une photo dans la galerie (facultatif)</label><input id="photoFile" type="file" accept="image/*">
 <button type="submit">Ajouter le candidat</button></form>
@@ -54,7 +54,48 @@ cs.forEach(c=>{const card=document.createElement("article");card.className="card
 function renderResults(rs){const el=$("results");el.innerHTML="";if(!rs.length){el.textContent="Les résultats apparaîtront après l’ajout des candidats.";return}rs.forEach(r=>{const row=document.createElement("div");row.className="row";const label=document.createElement("div");label.textContent=`${r.name} (${r.class_name}) — ${r.votes} vote(s)`;const bar=document.createElement("div");bar.className="bar";const fill=document.createElement("div");fill.className="fill";fill.style.width=Math.min(100,Number(r.percent)||0)+"%";bar.append(fill);row.append(label,bar);el.append(row)})}
 $("loginBtn").onclick=async()=>{try{const d=await api("admin-login",{method:"POST",body:JSON.stringify({password:$("adminPassword").value})});adminToken=d.token;sessionStorage.setItem("gsnAdminToken",adminToken);$("loginPanel").classList.add("hidden");$("adminPanel").classList.remove("hidden");notice("adminMessage","Connexion réussie.");}catch(e){notice("loginMessage",e.message,true)}};
 $("logoutBtn").onclick=()=>{adminToken="";sessionStorage.removeItem("gsnAdminToken");$("adminPanel").classList.add("hidden");$("loginPanel").classList.remove("hidden");$("adminPassword").value=""};
-$("candidateForm").onsubmit=async e=>{e.preventDefault();try{let photoUrl=$("photoUrl").value.trim();const file=$("photoFile").files[0];if(file){if(!file.type.startsWith("image/"))throw Error("Choisis un fichier image.");if(file.size>900000)throw Error("La photo doit faire moins de 900 Ko.");photoUrl=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)})}
+$("candidateForm").onsubmit = async e => {
+  e.preventDefault();
+
+  try {
+    let photoUrl = $("photoUrl").value.trim();
+    const file = $("photoFile").files[0];
+
+    if (file) {
+      if (!file.type.startsWith("image/")) {
+        throw new Error("Choisis un fichier image valide.");
+      }
+
+      photoUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(
+          new Error("Impossible de lire cette photo.")
+        );
+
+        reader.readAsDataURL(file);
+      });
+    }
+
+    await api("admin-candidates", {
+      method: "POST",
+      body: JSON.stringify({
+        name: $("name").value.trim(),
+        className: $("className").value,
+        program: $("program").value.trim(),
+        photoUrl
+      })
+    });
+
+    $("candidateForm").reset();
+    notice("adminMessage", "Candidat ajouté.");
+    await load();
+
+  } catch (e) {
+    notice("adminMessage", e.message, true);
+  }
+};
 await api("admin-candidates",{method:"POST",body:JSON.stringify({name:$("name").value.trim(),className:$("className").value,program:$("program").value.trim(),photoUrl})});$("candidateForm").reset();notice("adminMessage","Candidat ajouté.");await load()}catch(e){notice("adminMessage",e.message,true)}};
 $("resetVotesBtn").onclick=async()=>{if(!confirm("Effacer tous les votes du serveur ? Cette action est irréversible."))return;try{await api("admin-reset-votes",{method:"POST",body:"{}"});notice("adminMessage","Tous les votes ont été réinitialisés.");localStorage.removeItem("gsnHasVoted");await load()}catch(e){notice("adminMessage",e.message,true)}};
 $("deleteCandidatesBtn").onclick = async () => {
