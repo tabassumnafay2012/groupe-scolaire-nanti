@@ -96,7 +96,6 @@ $("candidateForm").onsubmit = async e => {
     notice("adminMessage", e.message, true);
   }
 };
-await api("admin-candidates",{method:"POST",body:JSON.stringify({name:$("name").value.trim(),className:$("className").value,program:$("program").value.trim(),photoUrl})});$("candidateForm").reset();notice("adminMessage","Candidat ajouté.");await load()}catch(e){notice("adminMessage",e.message,true)}};
 $("resetVotesBtn").onclick=async()=>{if(!confirm("Effacer tous les votes du serveur ? Cette action est irréversible."))return;try{await api("admin-reset-votes",{method:"POST",body:"{}"});notice("adminMessage","Tous les votes ont été réinitialisés.");localStorage.removeItem("gsnHasVoted");await load()}catch(e){notice("adminMessage",e.message,true)}};
 $("deleteCandidatesBtn").onclick = async () => {
   if (!confirm("ATTENTION ! Cela supprimera tous les candidats et leurs votes. Continuer ?")) {
