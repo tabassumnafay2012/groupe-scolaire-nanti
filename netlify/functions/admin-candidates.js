@@ -1,5 +1,5 @@
-const { createClient } = require("@supabase/supabase-js");
 const crypto = require("crypto");
+const { createClient } = require("@supabase/supabase-js");
 
 exports.handler = async (event) => {
   const headers = {
@@ -23,13 +23,20 @@ exports.handler = async (event) => {
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!secret || !supabaseUrl || !supabaseKey) {
-      throw new Error("Configuration du serveur incomplète.");
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({
+          error: "Configuration du serveur incomplète."
+        })
+      };
     }
 
+    // Vérifier la session administrateur.
     const token =
-     event.headers["x-admin-token"] ||
-     event.headers["X-Admin-Token"] ||
-     "";
+      event.headers["x-admin-token"] ||
+      event.headers["X-Admin-Token"] ||
+      "";
 
     const parts = token.split(".");
 
@@ -37,7 +44,9 @@ exports.handler = async (event) => {
       return {
         statusCode: 401,
         headers,
-        body: JSON.stringify({ error: "Connexion administrateur requise." })
+        body: JSON.stringify({
+          error: "Connexion administrateur requise."
+        })
       };
     }
 
@@ -48,17 +57,19 @@ exports.handler = async (event) => {
       .update(payload)
       .digest("base64url");
 
-    const a = Buffer.from(signature);
-    const b = Buffer.from(expected);
+    const suppliedBuffer = Buffer.from(signature);
+    const expectedBuffer = Buffer.from(expected);
 
     if (
-      a.length !== b.length ||
-      !crypto.timingSafeEqual(a, b)
+      suppliedBuffer.length !== expectedBuffer.length ||
+      !crypto.timingSafeEqual(suppliedBuffer, expectedBuffer)
     ) {
       return {
         statusCode: 401,
         headers,
-        body: JSON.stringify({ error: "Session administrateur invalide." })
+        body: JSON.stringify({
+          error: "Jeton administrateur invalide."
+        })
       };
     }
 
@@ -72,88 +83,176 @@ exports.handler = async (event) => {
       return {
         statusCode: 401,
         headers,
-        body: JSON.stringify({ error: "Session invalide." })
-      };
-    }
-
-    if (!session.exp || session.exp < Date.now()) {
-      return {
-        statusCode: 401,
-        headers,
-        body: JSON.stringify({ error: "Session expirée." })
-      };
-    }
-
-    const body = JSON.parse(event.body || "{}");
-    const name = String(body.name || "").trim();
-    const class_name = String(body.className || body.class_name || "").trim();
-    const program = String(body.program || "").trim();
-    const photo_url = String(body.photoUrl || body.photo_url || "").trim();
-
-    if (!name || !class_name || !program) {
-      return {
-        statusCode: 400,
-        headers,
         body: JSON.stringify({
-          error: "Le nom, la classe et le programme sont obligatoires."
+          error: "Jeton administrateur invalide."
         })
       };
     }
 
     if (
-      name.length > 100 ||
-      class_name.length > 50 ||
-      program.length > 5000 ||
-      photo_url.length > 1200000
+      !session.exp ||
+      !Number.isFinite(session.exp) ||
+      session.exp < Date.now()
+    ) {
+      return {
+        statusCode: 401,
+        headers,
+        body: JSON.stringify({
+          error: "Session expirée. Reconnecte-toi."
+        })
+      };
+    }
+
+    const supabase = createClient(
+      supabaseUrl,
+      supabaseKey
+    );
+
+    const body = JSON.parse(event.body || "{}");
+
+    const name = String(body.name || "").trim();
+    const className = String(body.className || "").trim();
+    const program = String(body.program || "").trim();
+
+    let photoUrl = String(body.photoUrl || "").trim();
+
+    if (!name || !className) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({
+          error: "Le nom et la classe sont obligatoires."
+        })
+      };
+    }
+
+    // Si la photo vient de la galerie, elle est reçue en Data URL.
+    if (photoUrl.startsWith("data:")) {
+      const match = photoUrl.match(
+        /^data:(image\/(?:jpeg|png|webp|gif));base64,([A-Za-z0-9+/=]+)$/
+      );
+
+      if (!match) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({
+            error: "Format de photo non accepté. Utilise une image JPG, PNG, WEBP ou GIF."
+          })
+        };
+      }
+
+      const mimeType = match[1];
+      const imageBuffer = Buffer.from(match[2], "base64");
+
+      if (imageBuffer.length > 5 * 1024 * 1024) {
+        return {
+          statusCode: 413,
+          headers,
+          body: JSON.stringify({
+            error: "La photo dépasse 5 Mo. Choisis une image plus légère."
+          })
+        };
+      }
+
+      const extensions = {
+        "image/jpeg": "jpg",
+        "image/png": "png",
+        "image/webp": "webp",
+        "image/gif": "gif"
+      };
+
+      const filePath =
+        "candidats/" +
+        Date.now() +
+        "-" +
+        crypto.randomUUID() +
+        "." +
+        extensions[mimeType];
+
+      const { error: uploadError } = await supabase
+        .storage
+        .from("candidate-photos")
+        .upload(filePath, imageBuffer, {
+          contentType: mimeType,
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error("Erreur stockage photo:", uploadError.message);
+
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({
+            error: "Impossible d'enregistrer la photo. Vérifie le bucket Supabase."
+          })
+        };
+      }
+
+      const { data: publicData } = supabase
+        .storage
+        .from("candidate-photos")
+        .getPublicUrl(filePath);
+
+      photoUrl = publicData.publicUrl;
+    }
+
+    // Accepter uniquement les liens HTTPS pour les photos externes.
+    if (
+      photoUrl &&
+      !photoUrl.startsWith("https://")
     ) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: "Un champ est trop long." })
+        body: JSON.stringify({
+          error: "Le lien de la photo doit commencer par https://."
+        })
       };
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
+    // Enregistrer le candidat et le lien de sa photo.
     const { data, error } = await supabase
       .from("candidates")
-      .insert([{
-        name,
-        class_name,
-        program,
-        photo_url: photo_url || null
-      }])
-      .select("id, name, class_name, program, photo_url")
+      .insert({
+        name: name,
+        class_name: className,
+        program: program,
+        photo_url: photoUrl || null
+      })
+      .select()
       .single();
 
     if (error) {
-      console.error("Erreur Supabase :", error.message);
+      console.error("Erreur ajout candidat:", error.message);
 
       return {
         statusCode: 500,
         headers,
         body: JSON.stringify({
-          error: "Impossible d'enregistrer le candidat."
+          error: "Impossible d'ajouter le candidat dans la base de données."
         })
       };
     }
 
     return {
-      statusCode: 201,
+      statusCode: 200,
       headers,
       body: JSON.stringify({
-        message: "Candidat ajouté avec succès.",
-        candidate: data
+        success: true,
+        candidate: data,
+        message: "Candidat ajouté avec succès."
       })
     };
   } catch (error) {
-    console.error("Erreur admin-candidates :", error.message);
+    console.error("Erreur admin-candidates:", error.message);
 
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({
-        error: "Une erreur est survenue sur le serveur."
+        error: "Une erreur du serveur est survenue."
       })
     };
   }
